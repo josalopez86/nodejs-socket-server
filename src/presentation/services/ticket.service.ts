@@ -1,8 +1,16 @@
+import { get } from "http";
 import { UuidAdapter } from "../../config/uuid.adapter";
 import { Ticket } from "../../domain/interfaces/ticket";
+import { WssService } from "./wss.service";
 
 
 export class TicketService{
+
+    constructor(
+        private readonly wssService = WssService.instance,
+    ){
+
+    }
 
     public _tickets: Ticket [] = [
         { id: UuidAdapter.v4(), number:1, createdAt: new Date, done: false },
@@ -41,20 +49,20 @@ export class TicketService{
                            };
 
         this._tickets.push(newTicket);
-        //TODO: call ws
+        this.onTicketNumberChanged();
 
         return newTicket;
     }
 
     public drawTicket(deskId: string): Ticket | null{
-        const ticket = this._tickets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        const ticket = this._tickets//.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         .find(f => !f.done && !f.handleAt);
 
         if (ticket) {
             ticket.handleAtDesk = deskId;
             ticket.handleAt = new Date;
 
-            //TODO: CALL WS
+            this.onTicketNumberChanged();
             this._workingOnTickets.unshift({...ticket});
             return ticket;
         }
@@ -71,6 +79,10 @@ export class TicketService{
         }
 
         return false;
+    }
+
+    private onTicketNumberChanged(){
+        this.wssService.sendMessage("on-ticket-count-changed", this.getPendingTickets().length);
     }
 
 }
